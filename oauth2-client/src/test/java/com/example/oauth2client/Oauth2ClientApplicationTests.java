@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +27,6 @@ import org.springframework.web.client.RestOperations;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.TemporalAmount;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -55,14 +53,9 @@ public class Oauth2ClientApplicationTests {
 
 	@Test
 	public void oauth() throws Exception {
-		Set<GrantedAuthority> authorities = new HashSet<>(AuthorityUtils.createAuthorityList("USER"));
-		OAuth2User oAuth2User = new DefaultOAuth2User(authorities, Collections.singletonMap("name", "rob"), "name");
-		OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(oAuth2User, authorities, "login-client");
-		OAuth2AccessToken accessToken = new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER, "a", Instant.now(), Instant.now().plus(
-				Duration.ofDays(1)));
+		OAuth2AuthenticationToken authenticationToken = createToken();
+		OAuth2AuthorizedClient authorizedClient = createAuthorizedClient(authenticationToken);
 
-		ClientRegistration clientRegistration = this.registrations.findByRegistrationId(token.getAuthorizedClientRegistrationId());
-		OAuth2AuthorizedClient authorizedClient = new OAuth2AuthorizedClient(clientRegistration, oAuth2User.getName(), accessToken);
 		Mockito.when(this.authorizedClientService.loadAuthorizedClient(Mockito.anyString(), Mockito.anyString()))
 				.thenReturn(authorizedClient);
 		Mockito.when(this.restTemplate.exchange(
@@ -72,9 +65,22 @@ public class Oauth2ClientApplicationTests {
 				Mockito.any(ProfileRestController.PrincipalDetails.class.getClass())))
 				.thenReturn(ResponseEntity.ok(new ProfileRestController.PrincipalDetails("rob")));
 
-		this.mockMvc.perform(get("/").with(authentication(token)))
+		this.mockMvc.perform(get("/").with(authentication(authenticationToken)))
 				.andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON_UTF8))
 				.andExpect(MockMvcResultMatchers.jsonPath("@.name").value("rob"));
 	}
 
+	private OAuth2AuthorizedClient createAuthorizedClient(OAuth2AuthenticationToken authenticationToken) {
+		OAuth2AccessToken accessToken = new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER, "a", Instant.now(), Instant.now().plus(
+				Duration.ofDays(1)));
+
+		ClientRegistration clientRegistration = this.registrations.findByRegistrationId(authenticationToken.getAuthorizedClientRegistrationId());
+		return new OAuth2AuthorizedClient(clientRegistration, authenticationToken.getName(), accessToken);
+	}
+
+	private OAuth2AuthenticationToken createToken() {
+		Set<GrantedAuthority> authorities = new HashSet<>(AuthorityUtils.createAuthorityList("USER"));
+		OAuth2User oAuth2User = new DefaultOAuth2User(authorities, Collections.singletonMap("name", "rob"), "name");
+		return new OAuth2AuthenticationToken(oAuth2User, authorities, "login-client");
+	}
 }
