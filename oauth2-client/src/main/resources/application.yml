@@ -1,0 +1,20 @@
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          login-client:
+            provider: local-authz
+            client-id : client-1234
+            client-secret : secret
+            client-authentication-method : basic
+            authorization-grant-type: authorization_code
+            scope : profile
+            client-name : Login Client
+            redirect-uri-template : "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          local-authz :
+            authorization-uri: http://auth-server:8090/oauth/authorize
+            token-uri: http://auth-server:8090/oauth/token
+            user-info-uri : http://auth-server:8090/resources/userinfo
+            user-name-attribute : name
