@@ -128,7 +128,7 @@ class SimpleUserDetailsService implements UserDetailsService {
 	SimpleUserDetailsService() {
 		Arrays.asList("josh", "rob", "joe")
 				.forEach(username -> this.users.putIfAbsent(
-						username, new User(username, "password", true, true, true, true, AuthorityUtils.createAuthorityList("USER"))));
+						username, new User(username, "pw", true, true, true, true, AuthorityUtils.createAuthorityList("USER"))));
 	}
 
 	@Override
