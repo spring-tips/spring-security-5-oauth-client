@@ -133,7 +133,10 @@ class SimpleUserDetailsService implements UserDetailsService {
 
 	@Override
 	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-		return this.users.get(username);
+		UserDetails userDetails = this.users.get(username);
+		return new User(userDetails.getUsername(), userDetails.getPassword(), userDetails.isEnabled(),
+				userDetails.isAccountNonExpired(), userDetails.isCredentialsNonExpired(),
+				userDetails.isAccountNonLocked(), userDetails.getAuthorities());
 	}
 }
 
