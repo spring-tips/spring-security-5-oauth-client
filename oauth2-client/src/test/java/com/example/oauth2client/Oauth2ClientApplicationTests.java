@@ -68,7 +68,7 @@ public class Oauth2ClientApplicationTests {
 		Mockito.when(this.restTemplate.exchange(
 				Mockito.any(String.class),
 				Mockito.any(HttpMethod.class),
-				Mockito.any(HttpEntity.class),
+				Mockito.any(),
 				Mockito.any(ProfileRestController.PrincipalDetails.class.getClass())))
 				.thenReturn(ResponseEntity.ok(new ProfileRestController.PrincipalDetails("rob")));
 
