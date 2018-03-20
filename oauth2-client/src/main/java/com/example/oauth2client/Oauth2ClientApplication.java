@@ -9,6 +9,7 @@ import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
@@ -16,23 +17,26 @@ import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestOperations;
 import org.springframework.web.client.RestTemplate;
 
 @SpringBootApplication
 public class Oauth2ClientApplication {
 
 	@Bean
-	RestOperations restTemplate(OAuth2AuthorizedClientService cs) {
+	RestTemplate restTemplate(OAuth2AuthorizedClientService clientService) {
 		return new RestTemplateBuilder()
-				.interceptors((ClientHttpRequestInterceptor) (httpRequest, bytes, clientHttpRequestExecution) -> {
+				.interceptors((ClientHttpRequestInterceptor) (httpRequest, bytes, execution) -> {
+
 					OAuth2AuthenticationToken token = OAuth2AuthenticationToken.class.cast(
 							SecurityContextHolder.getContext().getAuthentication());
-					OAuth2AuthorizedClient client = cs.loadAuthorizedClient(
+
+					OAuth2AuthorizedClient client = clientService.loadAuthorizedClient(
 							token.getAuthorizedClientRegistrationId(),
 							token.getName());
+
 					httpRequest.getHeaders().add(HttpHeaders.AUTHORIZATION, "Bearer " + client.getAccessToken().getTokenValue());
-					return clientHttpRequestExecution.execute(httpRequest, bytes);
+
+					return execution.execute(httpRequest, bytes);
 				})
 				.build();
 	}
@@ -45,35 +49,34 @@ public class Oauth2ClientApplication {
 @RestController
 class ProfileRestController {
 
-	private final OAuth2AuthorizedClientService cs;
-	private final RestOperations restTemplate;
+	private final RestTemplate restTemplate;
+	private final OAuth2AuthorizedClientService clientService;
 
-	ProfileRestController(OAuth2AuthorizedClientService cs, RestOperations restTemplate) {
-		this.cs = cs;
+	ProfileRestController(RestTemplate restTemplate, OAuth2AuthorizedClientService clientService) {
 		this.restTemplate = restTemplate;
+		this.clientService = clientService;
 	}
 
 	@GetMapping("/")
 	PrincipalDetails profile(OAuth2AuthenticationToken token) {
-
-		OAuth2AuthorizedClient client = cs.loadAuthorizedClient(
-				token.getAuthorizedClientRegistrationId(),
-				token.getName());
-
-		String userInfoUri = client.getClientRegistration()
+		OAuth2AuthorizedClient client = this.clientService
+				.loadAuthorizedClient(
+						token.getAuthorizedClientRegistrationId(),
+						token.getName());
+		String uri = client.getClientRegistration()
 				.getProviderDetails()
 				.getUserInfoEndpoint()
 				.getUri();
+		ResponseEntity<PrincipalDetails> responseEntity = this.restTemplate
+				.exchange(uri, HttpMethod.GET, null, PrincipalDetails.class);
+		return responseEntity.getBody();
 
-		return restTemplate.exchange(
-				userInfoUri, HttpMethod.GET, null, PrincipalDetails.class)
-				.getBody();
 	}
+}
 
-	@Data
-	@AllArgsConstructor
-	@NoArgsConstructor
-	public static class PrincipalDetails {
-		private String name;
-	}
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+class PrincipalDetails {
+	private String name;
 }
